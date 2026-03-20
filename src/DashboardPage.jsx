@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { useNavigate } from "react-router-dom";
 import "./App.css";
 
 function DashboardPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate();
 
   const fetchLeads = async () => {
     const { data, error } = await supabase
@@ -93,15 +96,28 @@ function DashboardPage() {
     setLeads((prevLeads) => prevLeads.filter((lead) => lead.id !== id));
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-overlay">
         <div className="dashboard-card">
-          <p className="eyebrow">Private CRM Dashboard</p>
-          <h1>Lead Dashboard</h1>
-          <p className="intro">
-            View incoming leads, update their status, and stay organized.
-          </p>
+          <div className="dashboard-topbar">
+            <div>
+              <p className="eyebrow">Private CRM Dashboard</p>
+              <h1>Lead Dashboard</h1>
+              <p className="intro">
+                View incoming leads, update their status, and stay organized.
+              </p>
+            </div>
+
+            <button className="small-btn" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
 
           {loading ? (
             <p className="dashboard-message">Loading leads...</p>

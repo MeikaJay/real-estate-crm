@@ -252,3 +252,10 @@ button:hover {
   color: #111111;
   letter-spacing: 0.5px;
 }
+.dashboard-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 20px;
+}
