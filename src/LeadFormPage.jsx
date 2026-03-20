@@ -52,22 +52,21 @@ function LeadFormPage() {
       return;
     }
 
-    setSubmitted(true);
-  };
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      timeline: "",
+      hasRealtor: "",
+    });
 
-  if (submitted) {
-    return (
-      <div className="thank-you-page">
-        <div className="thank-you-card">
-          <h1>Thank You</h1>
-          <p>
-            Your request has been received. A real estate professional will be
-            reaching out to you shortly.
-          </p>
-        </div>
-      </div>
-    );
-  }
+    setSubmitted(true);
+
+    setTimeout(() => {
+      setSubmitted(false);
+    }, 2500);
+  };
 
   return (
     <div className="page">
@@ -79,6 +78,12 @@ function LeadFormPage() {
             Complete the form below and a real estate professional will reach
             out to you.
           </p>
+
+          {submitted && (
+            <div className="success-banner">
+              Submitted successfully.
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="field">
