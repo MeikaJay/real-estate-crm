@@ -74,7 +74,7 @@ function LeadFormPage() {
       <div className="overlay">
         <div className="card">
           <p className="eyebrow">Euphoria Realty</p>
-          <h1>TThank You for Touring</h1>
+          <h1>Thank You for Touring</h1>
           <p className="intro">
             Complete the form below and a real estate professional will reach
             out to you.
