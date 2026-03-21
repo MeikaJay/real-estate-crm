@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { useNavigate } from "react-router-dom";
 import "./App.css";
@@ -9,6 +9,7 @@ function DashboardPage() {
   const [pageError, setPageError] = useState("");
 
   const navigate = useNavigate();
+  const saveTimeouts = useRef({});
 
   const fetchLeads = async () => {
     try {
@@ -27,13 +28,7 @@ function DashboardPage() {
         return;
       }
 
-      const leadsWithState = (data || []).map((lead) => ({
-        ...lead,
-        isDirty: false,
-        isSaving: false,
-      }));
-
-      setLeads(leadsWithState);
+      setLeads(data || []);
     } catch (err) {
       console.error("Unexpected fetch error:", err);
       setPageError(err.message || "Unexpected error loading leads.");
@@ -45,59 +40,51 @@ function DashboardPage() {
 
   useEffect(() => {
     fetchLeads();
+
+    return () => {
+      Object.values(saveTimeouts.current).forEach((timeoutId) =>
+        clearTimeout(timeoutId)
+      );
+    };
   }, []);
 
-  const handleFieldChange = (id, field, value) => {
-    setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === id
-          ? { ...lead, [field]: value, isDirty: true }
-          : lead
-      )
-    );
-  };
-
-  const saveLead = async (lead) => {
-    setLeads((prevLeads) =>
-      prevLeads.map((item) =>
-        item.id === lead.id ? { ...item, isSaving: true } : item
-      )
-    );
-
-    const payload = {
-      status: lead.status || "New",
-      priority: lead.priority || "Normal",
-      notes: lead.notes || "",
-    };
-
-    const { error } = await supabase
-      .from("Leads")
-      .update(payload)
-      .eq("id", lead.id);
-
-    if (error) {
-      console.error("Error saving lead:", error);
-      alert("Could not save lead");
-      setLeads((prevLeads) =>
-        prevLeads.map((item) =>
-          item.id === lead.id ? { ...item, isSaving: false } : item
-        )
-      );
-      return;
+  const autoSaveLead = (updatedLead) => {
+    if (saveTimeouts.current[updatedLead.id]) {
+      clearTimeout(saveTimeouts.current[updatedLead.id]);
     }
 
-    setLeads((prevLeads) =>
-      prevLeads.map((item) =>
-        item.id === lead.id
-          ? {
-              ...item,
-              ...payload,
-              isDirty: false,
-              isSaving: false,
-            }
-          : item
-      )
-    );
+    saveTimeouts.current[updatedLead.id] = setTimeout(async () => {
+      const payload = {
+        status: updatedLead.status || "New",
+        priority: updatedLead.priority || "Normal",
+        notes: updatedLead.notes || "",
+      };
+
+      const { error } = await supabase
+        .from("Leads")
+        .update(payload)
+        .eq("id", updatedLead.id);
+
+      if (error) {
+        console.error("Error auto-saving lead:", error);
+        alert("Could not save changes");
+      }
+    }, 700);
+  };
+
+  const handleFieldChange = (id, field, value) => {
+    setLeads((prevLeads) => {
+      const updatedLeads = prevLeads.map((lead) =>
+        lead.id === id ? { ...lead, [field]: value } : lead
+      );
+
+      const updatedLead = updatedLeads.find((lead) => lead.id === id);
+      if (updatedLead) {
+        autoSaveLead(updatedLead);
+      }
+
+      return updatedLeads;
+    });
   };
 
   const markAsCalled = async (id) => {
@@ -124,7 +111,6 @@ function DashboardPage() {
               ...lead,
               status: "Contacted",
               last_contacted: now,
-              isDirty: false,
             }
           : lead
       )
@@ -165,7 +151,6 @@ function DashboardPage() {
     <div className="dashboard-page">
       <div className="dashboard-overlay">
         <div className="dashboard-card">
-          {/* HEADER */}
           <div className="dashboard-topbar">
             <div>
               <p className="eyebrow">Private CRM Dashboard</p>
@@ -176,10 +161,7 @@ function DashboardPage() {
             </div>
 
             <div className="topbar-buttons">
-              <button
-                className="small-btn"
-                onClick={() => navigate("/")}
-              >
+              <button className="small-btn" onClick={() => navigate("/")}>
                 Add Lead
               </button>
 
@@ -189,7 +171,6 @@ function DashboardPage() {
             </div>
           </div>
 
-          {/* CONTENT */}
           {loading ? (
             <p className="dashboard-message">Loading leads...</p>
           ) : pageError ? (
@@ -225,7 +206,6 @@ function DashboardPage() {
                       <td>{lead.timeline}</td>
                       <td>{String(lead.has_realtor ?? "")}</td>
 
-                      {/* STATUS */}
                       <td>
                         <select
                           className="dashboard-select"
@@ -241,7 +221,6 @@ function DashboardPage() {
                         </select>
                       </td>
 
-                      {/* PRIORITY */}
                       <td>
                         <select
                           className="dashboard-select"
@@ -260,7 +239,6 @@ function DashboardPage() {
                         </select>
                       </td>
 
-                      {/* NOTES */}
                       <td>
                         <textarea
                           className="dashboard-notes"
@@ -272,29 +250,19 @@ function DashboardPage() {
                         />
                       </td>
 
-                      {/* LAST CONTACTED */}
                       <td>
                         {lead.last_contacted
                           ? new Date(lead.last_contacted).toLocaleString()
                           : "Not contacted"}
                       </td>
 
-                      {/* ACTIONS */}
                       <td>
                         <div className="action-buttons">
                           <button
                             className="small-btn"
-                            onClick={() => saveLead(lead)}
-                            disabled={!lead.isDirty || lead.isSaving}
+                            onClick={() => markAsCalled(lead.id)}
                           >
-                            {lead.isSaving ? "Saving..." : "Save"}
-                          </button>
-
-                          <button
-                            className="small-btn"
-                            onClick={() => submitted(lead.id)}
-                          >
-                            Submitted
+                            Submit
                           </button>
 
                           <button
