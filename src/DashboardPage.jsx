@@ -15,14 +15,12 @@ function DashboardPage() {
       setLoading(true);
       setPageError("");
 
-      console.log("Fetching leads from Supabase...");
-
       const { data, error } = await supabase
         .from("Leads")
         .select("*")
         .order("created_at", { ascending: false });
 
-      console.log("Leads response:", { data, error });
+      console.log("FETCH LEADS RESULT:", { data, error });
 
       if (error) {
         console.error("Error loading leads:", error);
@@ -33,8 +31,8 @@ function DashboardPage() {
 
       setLeads(data || []);
     } catch (err) {
-      console.error("Unexpected dashboard error:", err);
-      setPageError(err.message || "Unexpected error loading dashboard.");
+      console.error("Unexpected fetch error:", err);
+      setPageError(err.message || "Unexpected error loading leads.");
       setLeads([]);
     } finally {
       setLoading(false);
@@ -121,7 +119,7 @@ function DashboardPage() {
       return;
     }
 
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   return (
