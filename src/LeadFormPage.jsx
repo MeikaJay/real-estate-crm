@@ -164,7 +164,7 @@ function LeadFormPage() {
             </div>
 
             <button type="submit" disabled={loading}>
-              {loading ? "Submitting..." : "Request A Callback"}
+              {loading ? "Submitting..." : "Submit"}
             </button>
           </form>
 
