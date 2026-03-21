@@ -6,23 +6,39 @@ import "./App.css";
 function DashboardPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
 
   const navigate = useNavigate();
 
   const fetchLeads = async () => {
-    const { data, error } = await supabase
-      .from("Leads")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      setLoading(true);
+      setPageError("");
 
-    if (error) {
-      console.error("Error loading leads:", error);
+      console.log("Fetching leads from Supabase...");
+
+      const { data, error } = await supabase
+        .from("Leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      console.log("Leads response:", { data, error });
+
+      if (error) {
+        console.error("Error loading leads:", error);
+        setPageError(error.message || "Could not load leads.");
+        setLeads([]);
+        return;
+      }
+
+      setLeads(data || []);
+    } catch (err) {
+      console.error("Unexpected dashboard error:", err);
+      setPageError(err.message || "Unexpected error loading dashboard.");
+      setLeads([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setLeads(data || []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -97,7 +113,14 @@ function DashboardPage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error("Logout error:", error);
+      alert("Could not log out");
+      return;
+    }
+
     navigate("/login");
   };
 
@@ -121,6 +144,8 @@ function DashboardPage() {
 
           {loading ? (
             <p className="dashboard-message">Loading leads...</p>
+          ) : pageError ? (
+            <p className="dashboard-message">Error: {pageError}</p>
           ) : leads.length === 0 ? (
             <p className="dashboard-message">No leads yet.</p>
           ) : (
@@ -149,7 +174,7 @@ function DashboardPage() {
                       <td>{lead.email}</td>
                       <td>{lead.phone}</td>
                       <td>{lead.timeline}</td>
-                      <td>{lead.has_realtor}</td>
+                      <td>{String(lead.has_realtor ?? "")}</td>
 
                       <td>
                         <select
