@@ -20,8 +20,6 @@ function DashboardPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      console.log("FETCH LEADS RESULT:", { data, error });
-
       if (error) {
         console.error("Error loading leads:", error);
         setPageError(error.message || "Could not load leads.");
@@ -29,7 +27,13 @@ function DashboardPage() {
         return;
       }
 
-      setLeads(data || []);
+      const leadsWithState = (data || []).map((lead) => ({
+        ...lead,
+        isDirty: false,
+        isSaving: false,
+      }));
+
+      setLeads(leadsWithState);
     } catch (err) {
       console.error("Unexpected fetch error:", err);
       setPageError(err.message || "Unexpected error loading leads.");
@@ -43,21 +47,55 @@ function DashboardPage() {
     fetchLeads();
   }, []);
 
-  const updateLeadField = async (id, field, value) => {
+  const handleFieldChange = (id, field, value) => {
+    setLeads((prevLeads) =>
+      prevLeads.map((lead) =>
+        lead.id === id
+          ? { ...lead, [field]: value, isDirty: true }
+          : lead
+      )
+    );
+  };
+
+  const saveLead = async (lead) => {
+    setLeads((prevLeads) =>
+      prevLeads.map((item) =>
+        item.id === lead.id ? { ...item, isSaving: true } : item
+      )
+    );
+
+    const payload = {
+      status: lead.status || "New",
+      priority: lead.priority || "Normal",
+      notes: lead.notes || "",
+    };
+
     const { error } = await supabase
       .from("Leads")
-      .update({ [field]: value })
-      .eq("id", id);
+      .update(payload)
+      .eq("id", lead.id);
 
     if (error) {
-      console.error(`Error updating ${field}:`, error);
-      alert(`Could not update ${field}`);
+      console.error("Error saving lead:", error);
+      alert("Could not save lead");
+      setLeads((prevLeads) =>
+        prevLeads.map((item) =>
+          item.id === lead.id ? { ...item, isSaving: false } : item
+        )
+      );
       return;
     }
 
     setLeads((prevLeads) =>
-      prevLeads.map((lead) =>
-        lead.id === id ? { ...lead, [field]: value } : lead
+      prevLeads.map((item) =>
+        item.id === lead.id
+          ? {
+              ...item,
+              ...payload,
+              isDirty: false,
+              isSaving: false,
+            }
+          : item
       )
     );
   };
@@ -86,6 +124,7 @@ function DashboardPage() {
               ...lead,
               status: "Contacted",
               last_contacted: now,
+              isDirty: false,
             }
           : lead
       )
@@ -126,6 +165,7 @@ function DashboardPage() {
     <div className="dashboard-page">
       <div className="dashboard-overlay">
         <div className="dashboard-card">
+          {/* HEADER */}
           <div className="dashboard-topbar">
             <div>
               <p className="eyebrow">Private CRM Dashboard</p>
@@ -135,11 +175,21 @@ function DashboardPage() {
               </p>
             </div>
 
-            <button className="small-btn" onClick={handleLogout}>
-              Logout
-            </button>
+            <div className="topbar-buttons">
+              <button
+                className="small-btn"
+                onClick={() => navigate("/")}
+              >
+                Add Lead
+              </button>
+
+              <button className="small-btn" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
           </div>
 
+          {/* CONTENT */}
           {loading ? (
             <p className="dashboard-message">Loading leads...</p>
           ) : pageError ? (
@@ -163,6 +213,7 @@ function DashboardPage() {
                     <th>Actions</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {leads.map((lead) => (
                     <tr key={lead.id}>
@@ -174,12 +225,13 @@ function DashboardPage() {
                       <td>{lead.timeline}</td>
                       <td>{String(lead.has_realtor ?? "")}</td>
 
+                      {/* STATUS */}
                       <td>
                         <select
                           className="dashboard-select"
                           value={lead.status || "New"}
                           onChange={(e) =>
-                            updateLeadField(lead.id, "status", e.target.value)
+                            handleFieldChange(lead.id, "status", e.target.value)
                           }
                         >
                           <option value="New">New</option>
@@ -189,12 +241,17 @@ function DashboardPage() {
                         </select>
                       </td>
 
+                      {/* PRIORITY */}
                       <td>
                         <select
                           className="dashboard-select"
                           value={lead.priority || "Normal"}
                           onChange={(e) =>
-                            updateLeadField(lead.id, "priority", e.target.value)
+                            handleFieldChange(
+                              lead.id,
+                              "priority",
+                              e.target.value
+                            )
                           }
                         >
                           <option value="Low">Low</option>
@@ -203,40 +260,43 @@ function DashboardPage() {
                         </select>
                       </td>
 
+                      {/* NOTES */}
                       <td>
                         <textarea
                           className="dashboard-notes"
                           placeholder="Add notes"
                           value={lead.notes || ""}
                           onChange={(e) =>
-                            setLeads((prevLeads) =>
-                              prevLeads.map((item) =>
-                                item.id === lead.id
-                                  ? { ...item, notes: e.target.value }
-                                  : item
-                              )
-                            )
-                          }
-                          onBlur={(e) =>
-                            updateLeadField(lead.id, "notes", e.target.value)
+                            handleFieldChange(lead.id, "notes", e.target.value)
                           }
                         />
                       </td>
 
+                      {/* LAST CONTACTED */}
                       <td>
                         {lead.last_contacted
                           ? new Date(lead.last_contacted).toLocaleString()
                           : "Not contacted"}
                       </td>
 
+                      {/* ACTIONS */}
                       <td>
                         <div className="action-buttons">
                           <button
                             className="small-btn"
-                            onClick={() => markAsCalled(lead.id)}
+                            onClick={() => saveLead(lead)}
+                            disabled={!lead.isDirty || lead.isSaving}
                           >
-                            Mark Called
+                            {lead.isSaving ? "Saving..." : "Save"}
                           </button>
+
+                          <button
+                            className="small-btn"
+                            onClick={() => submitted(lead.id)}
+                          >
+                            Submitted
+                          </button>
+
                           <button
                             className="small-btn delete-btn"
                             onClick={() => deleteLead(lead.id)}

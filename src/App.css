@@ -262,3 +262,12 @@ button:hover {
 .dashboard-card h1 {
   color: #000000;
 }
+.topbar-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.small-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
