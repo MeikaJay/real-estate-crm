@@ -262,7 +262,7 @@ function DashboardPage() {
                             className="small-btn"
                             onClick={() => markAsCalled(lead.id)}
                           >
-                            Submit
+                            Marked Called
                           </button>
 
                           <button
